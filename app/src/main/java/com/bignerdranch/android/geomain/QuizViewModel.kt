@@ -15,6 +15,8 @@ class QuizViewModel: ViewModel() {
   //      Log.d(TAG, "ViewModel instance about to be destroyed")
   //  }
     var currentIndex = 0
+    var isCheater = false
+    var counterCheat = 0
 
     val questionBank = listOf(
         Questions(R.string.question_australia, true),
@@ -31,4 +33,5 @@ class QuizViewModel: ViewModel() {
     fun moveToNext() {
         currentIndex = (currentIndex + 1) % questionBank.size
     }
+
 }

@@ -26,4 +26,12 @@
         android:id="@+id/cheat_button"
         android:text="@string/show_answer_button"></Button>
 
+    <TextView
+        android:id="@+id/api_version"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        tools:text="api_version"
+        ></TextView>
+
     </LinearLayout>

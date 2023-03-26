@@ -1,6 +1,11 @@
 package com.bignerdranch.android.geomain
 
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.ActivityOptions
+import android.app.ActivityOptions.*
 import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -15,6 +20,8 @@ import androidx.lifecycle.ViewModelProviders
 
 private const val TAG = "MainActivity"
 private const val INDEX_KEY = "index"
+private const val REQUEST_CODE_CHEAT = 0
+private const val MAX_COUNT_CHEAT = 3
 
 class MainActivity : AppCompatActivity() {
     private lateinit var trueButton: Button
@@ -23,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var nextButton: ImageButton
     private lateinit var prevButton: ImageButton
     private lateinit var questionTextView: TextView
+    private lateinit var counterCheatTextView: TextView
 
     private val quizViewModel: QuizViewModel by lazy {
         ViewModelProviders.of(this).get(QuizViewModel::class.java)
@@ -30,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     var count: Int = 0;
 
+    @SuppressLint("RestrictedApi")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "OnCreate(Bundle?) called")
@@ -45,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         prevButton = findViewById(R.id.prev_button)
         cheatButton = findViewById(R.id.cheat_button)
         questionTextView = findViewById(R.id.question_text_view)
+        counterCheatTextView = findViewById(R.id.cheat_counter)
 
         updateQuestion()
 
@@ -61,12 +71,22 @@ class MainActivity : AppCompatActivity() {
             updateQuestion()
         }
 
-        cheatButton.setOnClickListener{
+        cheatButton.setOnClickListener{ view: View ->
             // начало CheatActivity
             //val intent = Intent(this, CheatActivity::class.java)
+            updateCheatCounter()
             val answerIsTrue = quizViewModel.currentQuestionAnswer
             val intent = CheatActivity.newIntent(this@MainActivity, answerIsTrue)
-            startActivity(intent)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val options =
+                    ActivityOptions
+                .makeClipRevealAnimation(view,0,0,view.width, view.height)
+                startActivityForResult(intent, REQUEST_CODE_CHEAT, options.toBundle())
+                Log.d(TAG,"startActivityForResult")
+            } else {
+                startActivityForResult(intent, REQUEST_CODE_CHEAT)
+            }
         }
         questionTextView.setOnClickListener {
             //currentIndex = (currentIndex + 1) % questionBank.size
@@ -111,6 +131,22 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         Log.d(TAG, "onDestroy() called")
     }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        Log.d(TAG, "oonActivityResult() called")
+
+        if (resultCode != Activity.RESULT_OK) {
+            //return
+            quizViewModel.isCheater = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
+        } else  if (resultCode != Activity.RESULT_CANCELED) {quizViewModel.isCheater = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false}
+
+        else if (resultCode == REQUEST_CODE_CHEAT) {
+            quizViewModel.isCheater = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
+        }
+        ///else  quizViewModel.isCheater = data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, true) ?: true
+    }
+
     private fun updateQuestion() {
         //Log.d(TAG, "Updating question text", Exception())
         val questionTextResId = quizViewModel.currentQuestionText
@@ -120,18 +156,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAnswer(userAnswer: Boolean) {
-        val messageResId = if (userAnswer == quizViewModel.currentQuestionAnswer) {
-            R.string.correct_toast
+        val correctAnswer: Boolean = quizViewModel.currentQuestionAnswer
+
+        val messageResId = when {
+            quizViewModel.isCheater -> R.string.judgment_toast
+            userAnswer == correctAnswer -> R.string.correct_toast
+            else -> R.string.incorrect_toast
         }
-        else R.string.incorrect_toast
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT)
             .show()
+        // далее идёт доработка приложения
         if (quizViewModel.currentIndex <= quizViewModel.questionBank.size && userAnswer == quizViewModel.currentQuestionAnswer) {
             count++
         }
         if (userAnswer == true) falseButton.isClickable=false else trueButton.isClickable=false
         if (quizViewModel.currentIndex == quizViewModel.questionBank.size)
             Toast.makeText(this, "Количество правильных ответов: $count",Toast.LENGTH_SHORT)
+    }
+
+    private fun updateCheatCounter() {
+        quizViewModel.counterCheat =  quizViewModel.counterCheat + 1
+        var count = quizViewModel.counterCheat
+        if ( MAX_COUNT_CHEAT <= quizViewModel.counterCheat ) cheatButton.isClickable=false
+        counterCheatTextView.setText("$count")
     }
 
 
